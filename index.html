@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#0f172a">
   <title>재고 관리 시스템</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script type="text/javascript" src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
   <style>
   @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
@@ -1451,7 +1452,7 @@
 <!-- LOGIN OVERLAY -->
 <div class="login-overlay" id="loginOverlay">
   <div class="login-particles" id="loginParticles"></div>
-  <div class="login-card">
+  <div class="login-card" id="loginCard">
     <div class="login-logo"><i class="ti ti-package"></i></div>
     <div class="login-title">재고 관리 시스템</div>
     <div class="login-subtitle">시스템에 접속하려면 로그인하세요</div>
@@ -1468,7 +1469,38 @@
       </div>
     </div>
     <button class="login-btn" id="loginBtn" onclick="doLogin()"><i class="ti ti-login"></i>로그인</button>
-    <div class="login-hint">사원번호: <strong>EMP001~EMP006</strong><br>기본 비밀번호: <strong>1234</strong></div>
+    <button class="btn-secondary" style="width: 100%; margin-top: 8px; justify-content: center; gap: 8px; display: flex; align-items: center; padding: 14px;" onclick="showSignup()"><i class="ti ti-user-plus"></i>회원가입</button>
+    <div class="login-hint">
+      일반 사원번호: <strong>EMP001~EMP006</strong> (PW: 1234)<br>
+      관리자 사원번호: <strong>N1102956</strong> (PW: 1102956)
+    </div>
+  </div>
+
+  <div class="login-card" id="signupCard" style="display:none;">
+    <div class="login-title">회원가입</div>
+    <div class="login-subtitle">시스템 사용을 위한 계정을 생성합니다</div>
+    <div class="login-field">
+      <label>사원번호 (아이디) *</label>
+      <div class="input-wrap"><i class="ti ti-user"></i><input type="text" id="signupId" placeholder="예: EMP007" /></div>
+    </div>
+    <div class="login-field">
+      <label>비밀번호 *</label>
+      <div class="input-wrap"><i class="ti ti-lock"></i><input type="password" id="signupPw" placeholder="비밀번호 입력" /></div>
+    </div>
+    <div class="login-field">
+      <label>이름 *</label>
+      <div class="input-wrap"><i class="ti ti-id"></i><input type="text" id="signupName" placeholder="예: 홍길동" /></div>
+    </div>
+    <div class="login-field">
+      <label>부서 *</label>
+      <div class="input-wrap"><i class="ti ti-building"></i><input type="text" id="signupDept" placeholder="예: 개발팀" /></div>
+    </div>
+    <div class="login-field">
+      <label>연락처</label>
+      <div class="input-wrap"><i class="ti ti-phone"></i><input type="text" id="signupContact" placeholder="예: 010-0000-0000" /></div>
+    </div>
+    <button class="login-btn" onclick="doSignup()"><i class="ti ti-check"></i>가입하기</button>
+    <button class="btn-secondary" style="width: 100%; margin-top: 8px; justify-content: center; display: flex; padding: 14px;" onclick="hideSignup()">취소</button>
   </div>
 </div>
 
@@ -1489,6 +1521,7 @@
     <div class="tab" data-tab="history"><i class="ti ti-history" aria-hidden="true"></i>이력</div>
     <div class="tab" data-tab="stock"><i class="ti ti-chart-bar" aria-hidden="true"></i>재고</div>
     <div class="tab" data-tab="export"><i class="ti ti-download" aria-hidden="true"></i>내보내기</div>
+    <div class="tab" data-tab="members" id="tabNavMembers" style="display:none;"><i class="ti ti-users" aria-hidden="true"></i>회원</div>
     <div class="tab" data-tab="settings"><i class="ti ti-settings" aria-hidden="true"></i>설정</div>
   </div>
 
@@ -1531,12 +1564,6 @@
           <div class="form-label">사원 선택 *</div>
           <select id="employeeSelect">
             <option value="">-- 사원을 선택하세요 --</option>
-            <option value="EMP001|김민준|생산1팀">EMP001 · 김민준 (생산1팀)</option>
-            <option value="EMP002|이서연|생산2팀">EMP002 · 이서연 (생산2팀)</option>
-            <option value="EMP003|박지호|물류팀">EMP003 · 박지호 (물류팀)</option>
-            <option value="EMP004|최수아|품질팀">EMP004 · 최수아 (품질팀)</option>
-            <option value="EMP005|정태현|관리팀">EMP005 · 정태현 (관리팀)</option>
-            <option value="EMP006|한지민|생산1팀">EMP006 · 한지민 (생산1팀)</option>
           </select>
         </div>
         <div class="form-2col">
@@ -1632,12 +1659,6 @@
         </select>
         <select id="exportEmp">
           <option value="all">전체 사원</option>
-          <option value="EMP001">김민준</option>
-          <option value="EMP002">이서연</option>
-          <option value="EMP003">박지호</option>
-          <option value="EMP004">최수아</option>
-          <option value="EMP005">정태현</option>
-          <option value="EMP006">한지민</option>
         </select>
       </div>
       <div class="form-label" style="margin-bottom:6px;">포함할 시트</div>
@@ -1669,7 +1690,19 @@
     <div class="export-panel">
       <h3><i class="ti ti-settings" aria-hidden="true"></i> 시스템 설정</h3>
 
-      <div style="margin-top: 24px;">
+      <div style="margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.05); border-radius: var(--radius-md);">
+        <div class="form-label" style="margin-bottom: 12px; font-size: 14px; color: var(--text-main);">
+          <i class="ti ti-user" style="color: var(--primary);"></i> 내 정보
+        </div>
+        <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;" id="myProfileInfo">
+          로딩중...
+        </div>
+        <button class="btn-secondary" style="width: 100%; justify-content: center; gap: 8px; display: flex; align-items: center;" onclick="openProfileModal()">
+          <i class="ti ti-user-edit"></i> 개인정보 수정
+        </button>
+      </div>
+
+      <div style="margin-top: 24px;" id="resetDataBlock">
         <div class="form-label" style="margin-bottom: 8px; font-size: 14px; color: var(--text-main);">
           <i class="ti ti-alert-triangle" style="color: var(--warning);"></i> 데이터 초기화
         </div>
@@ -1694,6 +1727,48 @@
           <i class="ti ti-trash" aria-hidden="true"></i> 선택 항목 초기화 실행
         </button>
       </div>
+    </div>
+  </div>
+
+  <div class="section" id="tab-members">
+    <div class="export-panel">
+      <h3><i class="ti ti-users" aria-hidden="true"></i> 등록된 회원 정보 목록</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+        가입된 모든 회원의 정보를 조회합니다. (관리자 전용)
+      </p>
+      <div class="stock-list" id="memberList" style="margin-top: 16px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Profile Edit Modal -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span><i class="ti ti-user-edit"></i> 개인정보 수정</span>
+      <button class="modal-close" onclick="closeProfileModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="action-form" style="border-top: none; padding-top: 0;">
+      <div class="form-row">
+        <div class="form-label">이름 *</div>
+        <input type="text" id="profName" />
+      </div>
+      <div class="form-row">
+        <div class="form-label">부서 *</div>
+        <input type="text" id="profDept" />
+      </div>
+      <div class="form-row">
+        <div class="form-label">연락처</div>
+        <input type="text" id="profContact" />
+      </div>
+      <div class="form-row">
+        <div class="form-label">새 비밀번호 (변경시에만 입력)</div>
+        <input type="password" id="profPw" placeholder="새 비밀번호" />
+      </div>
+    </div>
+    <div class="action-btns" style="margin-top: 16px;">
+      <button class="btn-secondary" onclick="closeProfileModal()">취소</button>
+      <button class="btn-primary" onclick="saveProfile()">저장</button>
     </div>
   </div>
 </div>
@@ -1748,9 +1823,11 @@
   let currentBarcode = null;
   let currentFilter = 'all';
   let cameraActive = false;
-  let videoStream = null;
-  let scanTimer = null;
+  let codeReader = null;
   let histId = 10;
+  let currentUserId = null;
+  let currentUserIsAdmin = false;
+  let currentUserIsOperator = false;
 
   history = [
     { id: 1, time: new Date(Date.now() - 3600000), barcode: '8801115103044', type: 'in', qty: 30, emp: 'EMP001', empName: '김민준', dept: '생산1팀', note: '정기 입고' },
@@ -1785,6 +1862,7 @@
       if (t.dataset.tab === 'history') renderHistory();
       if (t.dataset.tab === 'stock') renderStock();
       if (t.dataset.tab === 'export') updatePreview();
+      if (t.dataset.tab === 'members') renderMembers();
     };
   });
 
@@ -1953,27 +2031,36 @@
   async function toggleCamera() {
     if (cameraActive) { stopCamera(); return; }
     try {
-      videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      if(!codeReader) {
+        codeReader = new ZXing.BrowserMultiFormatReader();
+      }
+      
       const video = document.getElementById('video');
-      video.srcObject = videoStream;
       video.style.display = 'block';
       document.getElementById('camPlaceholder').style.display = 'none';
       document.getElementById('scanLine').style.display = 'block';
-      video.play();
+      
       cameraActive = true;
       document.getElementById('scanBtn').classList.add('scanning');
       document.getElementById('scanBtnText').textContent = '스캔 중... (탭하여 중지)';
-      const codes = Object.keys(PRODUCTS);
-      scanTimer = setTimeout(() => {
-        if (cameraActive) { stopCamera(); processBarcode(codes[Math.floor(Math.random() * codes.length)]); }
-      }, 2800);
-    } catch (e) { showToast('카메라 권한이 필요합니다', true); }
+      
+      codeReader.decodeFromVideoDevice(null, 'video', (result, err) => {
+        if (result && result.text) {
+          stopCamera();
+          if(window.navigator && window.navigator.vibrate) window.navigator.vibrate(100);
+          processBarcode(result.text);
+        }
+      });
+    } catch (e) { 
+      showToast('카메라 권한이 필요합니다', true); 
+      stopCamera();
+    }
   }
 
   function stopCamera() {
-    if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
-    if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
-    document.getElementById('video').style.display = 'none';
+    if (codeReader) { codeReader.reset(); }
+    const video = document.getElementById('video');
+    video.style.display = 'none';
     document.getElementById('camPlaceholder').style.display = '';
     document.getElementById('scanLine').style.display = 'none';
     cameraActive = false;
@@ -2104,7 +2191,7 @@
         </span>
         <div>
           <span class="history-time" style="margin-right: 8px;">${fmtTime(h.time)}</span>
-          <button style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; vertical-align: middle; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'" onclick="openEditModal(${h.id})"><i class="ti ti-edit"></i></button>
+          ${(currentUserIsAdmin || currentUserIsOperator) ? `<button style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; vertical-align: middle; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-muted)'" onclick="openEditModal(${h.id})"><i class="ti ti-edit"></i></button>` : ''}
         </div>
       </div>
       <div class="history-product">${name}</div>
@@ -2162,6 +2249,7 @@
   updatePreview();
 
   function openEditModal(id) {
+    if (!currentUserIsAdmin && !currentUserIsOperator) { showToast('권한이 없습니다 (운영진 이상 가능)', true); return; }
     const h = history.find(x => x.id === id);
     if (!h) return;
     document.getElementById('editId').value = h.id;
@@ -2228,6 +2316,7 @@
   }
 
   function confirmReset() {
+    if (!currentUserIsAdmin && !currentUserIsOperator) { showToast('권한이 없습니다 (운영진 이상 가능)', true); return; }
     const rHistory = document.getElementById('resetHistoryCb').checked;
     const rStock = document.getElementById('resetStockCb').checked;
 
@@ -2254,14 +2343,164 @@
   }
 
   /* ===== LOGIN SYSTEM ===== */
-  const ACCOUNTS = {
-    'EMP001': { pw: '1234', name: '김민준', dept: '생산1팀' },
-    'EMP002': { pw: '1234', name: '이서연', dept: '생산2팀' },
-    'EMP003': { pw: '1234', name: '박지호', dept: '물류팀' },
-    'EMP004': { pw: '1234', name: '최수아', dept: '품질팀' },
-    'EMP005': { pw: '1234', name: '정태현', dept: '관리팀' },
-    'EMP006': { pw: '1234', name: '한지민', dept: '생산1팀' },
+  const defaultAccounts = {
+    'N1102956': { pw: '1102956', name: '관리자', dept: '운영팀', contact: '010-0000-0000', isAdmin: true },
+    'EMP001': { pw: '1234', name: '김민준', dept: '생산1팀', contact: '-' },
+    'EMP002': { pw: '1234', name: '이서연', dept: '생산2팀', contact: '-' },
+    'EMP003': { pw: '1234', name: '박지호', dept: '물류팀', contact: '-' },
+    'EMP004': { pw: '1234', name: '최수아', dept: '품질팀', contact: '-' },
+    'EMP005': { pw: '1234', name: '정태현', dept: '관리팀', contact: '-' },
+    'EMP006': { pw: '1234', name: '한지민', dept: '생산1팀', contact: '-' },
   };
+
+  let ACCOUNTS = JSON.parse(localStorage.getItem('inv_accounts'));
+  if (!ACCOUNTS) {
+    ACCOUNTS = defaultAccounts;
+    localStorage.setItem('inv_accounts', JSON.stringify(ACCOUNTS));
+  }
+
+  function updateEmployeeSelects() {
+    const s1 = document.getElementById('employeeSelect');
+    const s2 = document.getElementById('exportEmp');
+    if(s1) {
+      const prevVal = s1.value;
+      s1.innerHTML = '<option value="">-- 사원을 선택하세요 --</option>';
+      for(let id in ACCOUNTS) {
+        const a = ACCOUNTS[id];
+        s1.innerHTML += `<option value="${id}|${a.name}|${a.dept}">${id} · ${a.name} (${a.dept})</option>`;
+      }
+      if(prevVal) s1.value = prevVal;
+    }
+    if(s2) {
+      const prevVal = s2.value;
+      s2.innerHTML = '<option value="all">전체 사원</option>';
+      for(let id in ACCOUNTS) {
+        s2.innerHTML += `<option value="${id}">${ACCOUNTS[id].name}</option>`;
+      }
+      if(prevVal) s2.value = prevVal;
+    }
+  }
+
+  // Call on init
+  updateEmployeeSelects();
+
+  function showSignup() {
+    document.getElementById('loginCard').style.display = 'none';
+    document.getElementById('signupCard').style.display = 'block';
+  }
+
+  function hideSignup() {
+    document.getElementById('signupCard').style.display = 'none';
+    document.getElementById('loginCard').style.display = 'block';
+    document.getElementById('signupId').value = '';
+    document.getElementById('signupPw').value = '';
+    document.getElementById('signupName').value = '';
+    document.getElementById('signupDept').value = '';
+    document.getElementById('signupContact').value = '';
+  }
+
+  function doSignup() {
+    const id = document.getElementById('signupId').value.trim().toUpperCase();
+    const pw = document.getElementById('signupPw').value;
+    const name = document.getElementById('signupName').value.trim();
+    const dept = document.getElementById('signupDept').value.trim();
+    const contact = document.getElementById('signupContact').value.trim();
+
+    if (!id || !pw || !name || !dept) { alert('사원번호, 비밀번호, 이름, 부서를 모두 입력하세요.'); return; }
+    if (ACCOUNTS[id]) { alert('이미 존재하는 사원번호입니다.'); return; }
+
+    ACCOUNTS[id] = { pw: pw, name: name, dept: dept, contact: contact };
+    localStorage.setItem('inv_accounts', JSON.stringify(ACCOUNTS));
+    
+    alert('회원가입이 완료되었습니다. 로그인해 주세요.');
+    hideSignup();
+    updateEmployeeSelects();
+  }
+
+  function renderMembers() {
+    const list = document.getElementById('memberList');
+    if (!list) return;
+    let html = '';
+    for(let id in ACCOUNTS) {
+      const a = ACCOUNTS[id];
+      let roleBadge = '';
+      if(a.isAdmin) roleBadge = '<span class="badge ok" style="padding: 2px 6px; font-size: 10px;">관리자</span>';
+      else if(a.isOperator) roleBadge = '<span class="badge" style="padding: 2px 6px; font-size: 10px; background: var(--secondary);">운영진</span>';
+      
+      let toggleHtml = '';
+      if(currentUserIsAdmin && !a.isAdmin) {
+        if(a.isOperator) {
+          toggleHtml = `<button class="btn-secondary" style="padding: 4px 8px; font-size: 12px; margin-left: auto;" onclick="toggleRole('${id}', false)">운영진 해제</button>`;
+        } else {
+          toggleHtml = `<button class="btn-primary" style="padding: 4px 8px; font-size: 12px; margin-left: auto;" onclick="toggleRole('${id}', true)">운영진 지정</button>`;
+        }
+      }
+
+      html += `<div class="stock-item" style="align-items: center;">
+        <div class="stock-item-icon"><i class="ti ${a.isAdmin ? 'ti-shield-check' : 'ti-user'}"></i></div>
+        <div class="stock-item-info">
+          <div class="stock-item-name" style="display: flex; align-items: center; gap: 8px;">
+            ${a.name} ${roleBadge}
+          </div>
+          <div class="stock-item-code">${id} · ${a.dept}</div>
+          <div class="stock-item-code" style="margin-top:4px;"><i class="ti ti-phone"></i> ${a.contact || '-'}</div>
+        </div>
+        ${toggleHtml}
+      </div>`;
+    }
+    list.innerHTML = html;
+  }
+
+  function toggleRole(targetId, makeOperator) {
+    if(!currentUserIsAdmin) return;
+    if(ACCOUNTS[targetId]) {
+      ACCOUNTS[targetId].isOperator = makeOperator;
+      localStorage.setItem('inv_accounts', JSON.stringify(ACCOUNTS));
+      renderMembers();
+      showToast(`${ACCOUNTS[targetId].name}님의 권한이 변경되었습니다.`);
+    }
+  }
+
+  function openProfileModal() {
+    if(!currentUserId || !ACCOUNTS[currentUserId]) return;
+    const a = ACCOUNTS[currentUserId];
+    document.getElementById('profName').value = a.name;
+    document.getElementById('profDept').value = a.dept;
+    document.getElementById('profContact').value = a.contact || '';
+    document.getElementById('profPw').value = '';
+    document.getElementById('profileModal').classList.add('active');
+  }
+
+  function closeProfileModal() {
+    document.getElementById('profileModal').classList.remove('active');
+  }
+
+  function saveProfile() {
+    if(!currentUserId || !ACCOUNTS[currentUserId]) return;
+    const name = document.getElementById('profName').value.trim();
+    const dept = document.getElementById('profDept').value.trim();
+    const contact = document.getElementById('profContact').value.trim();
+    const pw = document.getElementById('profPw').value;
+
+    if(!name || !dept) { showToast('이름과 부서를 입력하세요.', true); return; }
+
+    const a = ACCOUNTS[currentUserId];
+    a.name = name;
+    a.dept = dept;
+    a.contact = contact;
+    if(pw) a.pw = pw;
+
+    localStorage.setItem('inv_accounts', JSON.stringify(ACCOUNTS));
+    showToast('개인정보가 수정되었습니다.');
+    closeProfileModal();
+    
+    // Update active session locally without fully reloading
+    localStorage.setItem('inv_login', JSON.stringify({ id: currentUserId, name: name, dept: dept, isAdmin: a.isAdmin || false, isOperator: a.isOperator || false, time: Date.now() }));
+    updateEmployeeSelects();
+    renderMembers();
+    document.getElementById('myProfileInfo').innerHTML = `이름: ${name}<br>부서: ${dept}<br>연락처: ${contact || '-'}`;
+    document.getElementById('headerUser').textContent = name + ' (' + dept + ')';
+  }
 
   // Generate floating particles
   (function () {
@@ -2289,14 +2528,33 @@
     if (!acc) { errMsg.textContent = '등록되지 않은 사원번호입니다'; errEl.className = 'login-error show'; return; }
     if (acc.pw !== pw) { errMsg.textContent = '비밀번호가 올바르지 않습니다'; errEl.className = 'login-error show'; return; }
     // Login success
-    localStorage.setItem('inv_login', JSON.stringify({ id: id, name: acc.name, dept: acc.dept, time: Date.now() }));
-    activateSession(id, acc.name, acc.dept);
+    localStorage.setItem('inv_login', JSON.stringify({ id: id, name: acc.name, dept: acc.dept, isAdmin: acc.isAdmin || false, isOperator: acc.isOperator || false, time: Date.now() }));
+    activateSession(id, acc.name, acc.dept, acc.isAdmin || false, acc.isOperator || false);
   }
 
-  function activateSession(id, name, dept) {
+  function activateSession(id, name, dept, isAdmin, isOperator) {
+    currentUserId = id;
+    currentUserIsAdmin = isAdmin;
+    currentUserIsOperator = isOperator;
     document.getElementById('loginOverlay').classList.add('hidden');
+    
+    const acc = ACCOUNTS[id] || {};
+    const profEl = document.getElementById('myProfileInfo');
+    if (profEl) profEl.innerHTML = `이름: ${name}<br>부서: ${dept}<br>연락처: ${acc.contact || '-'}`;
+
+    const resetDataBlock = document.getElementById('resetDataBlock');
+    if (resetDataBlock) resetDataBlock.style.display = (isAdmin || isOperator) ? 'block' : 'none';
     document.getElementById('mainApp').style.display = '';
     document.getElementById('headerUser').textContent = name + ' (' + dept + ')';
+    
+    // Admin features visibility
+    const tabNavMembers = document.getElementById('tabNavMembers');
+    if(isAdmin) {
+      tabNavMembers.style.display = 'flex';
+    } else {
+      tabNavMembers.style.display = 'none';
+    }
+    
     // Auto-select employee in action form
     const sel = document.getElementById('employeeSelect');
     for (let o of sel.options) { if (o.value.startsWith(id + '|')) { sel.value = o.value; break; } }
@@ -2316,7 +2574,7 @@
     if (saved) {
       try {
         const s = JSON.parse(saved);
-        if (ACCOUNTS[s.id]) activateSession(s.id, s.name, s.dept);
+        if (ACCOUNTS[s.id]) activateSession(s.id, s.name, s.dept, s.isAdmin || false, s.isOperator || false);
       } catch (e) { }
     }
   })();
